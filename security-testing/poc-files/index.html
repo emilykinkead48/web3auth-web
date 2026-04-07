@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web3Auth Security Testing Suite</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 900px;
+      width: 100%;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #2d3748;
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    .subtitle {
+      color: #718096;
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 1.1rem;
+    }
+
+    .client-id {
+      background: #f7fafc;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      margin-bottom: 30px;
+      border-radius: 4px;
+    }
+
+    .client-id h3 {
+      color: #2d3748;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    .client-id code {
+      background: #edf2f7;
+      padding: 8px 12px;
+      border-radius: 4px;
+      display: block;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      color: #2d3748;
+    }
+
+    .test-section {
+      margin-bottom: 40px;
+    }
+
+    .test-section h2 {
+      color: #2d3748;
+      font-size: 1.5rem;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .severity-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .severity-critical {
+      background: #fed7d7;
+      color: #c53030;
+    }
+
+    .test-card {
+      background: #f7fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .test-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .test-card h3 {
+      color: #2d3748;
+      margin-bottom: 10px;
+      font-size: 1.2rem;
+    }
+
+    .test-card p {
+      color: #4a5568;
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+
+    .test-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .info-item {
+      background: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+    }
+
+    .info-label {
+      color: #718096;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value {
+      color: #2d3748;
+      font-weight: 600;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+
+    .btn:hover {
+      background: #5a67d8;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #48bb78;
+    }
+
+    .btn-secondary:hover {
+      background: #38a169;
+      box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 30px;
+      border-top: 2px solid #e2e8f0;
+      color: #718096;
+    }
+
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #48bb78;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔒 Web3Auth Security Testing Suite</h1>
+    <p class="subtitle">Comprehensive PoC & Bug Bounty Testing with Playwright</p>
+
+    <div class="client-id">
+      <h3>🔑 Test Client ID</h3>
+      <code>BFNfeVQyFvB_Fo5Yd6jYOvwje42U8qaHkDLOZ51AF_AjAd8GbrHV-zZ6yVytWDJJwKmJHQn7G7bW6Ei3p5Og8dw</code>
+    </div>
+
+    <div class="test-section">
+      <h2>
+        <span class="status-indicator"></span>
+        Available Security Tests
+      </h2>
+
+      <div class="test-card">
+        <h3>
+          1. Prototype Pollution Vulnerability
+          <span class="severity-badge severity-critical">Critical</span>
+        </h3>
+        <p>
+          Tests if deepmerge operations are vulnerable to prototype pollution attacks via
+          <code>__proto__</code>, <code>constructor.prototype</code>, and nested object injection.
+        </p>
+        <div class="test-info">
+          <div class="info-item">
+            <div class="info-label">CWE</div>
+            <div class="info-value">CWE-1321</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">CVSS</div>
+            <div class="info-value">9.1</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Test Vectors</div>
+            <div class="info-value">3</div>
+          </div>
+        </div>
+        <a href="/prototype-pollution.html" class="btn">Open PoC</a>
+        <a href="https://cwe.mitre.org/data/definitions/1321.html" class="btn btn-secondary" target="_blank">CWE Info</a>
+      </div>
+
+      <div class="test-card">
+        <h3>
+          2. DOM-Based XSS Vulnerability
+          <span class="severity-badge severity-critical">Critical</span>
+        </h3>
+        <p>
+          Tests if innerHTML usage allows script execution through various XSS vectors including
+          session hijacking, img onerror, SVG onload, and iframe srcdoc attacks.
+        </p>
+        <div class="test-info">
+          <div class="info-item">
+            <div class="info-label">CWE</div>
+            <div class="info-value">CWE-79</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">CVSS</div>
+            <div class="info-value">8.6</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Test Vectors</div>
+            <div class="info-value">5</div>
+          </div>
+        </div>
+        <a href="/dom-xss.html" class="btn">Open PoC</a>
+        <a href="https://cwe.mitre.org/data/definitions/79.html" class="btn btn-secondary" target="_blank">CWE Info</a>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>📚 Documentation</h2>
+      <div class="test-card">
+        <h3>Testing Resources</h3>
+        <p>Complete documentation for running tests, collecting evidence, and submitting bug bounty reports.</p>
+        <a href="../QUICKSTART.md" class="btn btn-secondary" download>Quick Start Guide</a>
+        <a href="../REFINED_BUG_BOUNTY_SECURITY_AUDIT_REPORT.md" class="btn btn-secondary" download>Bug Bounty Report</a>
+        <a href="../security-testing/README.md" class="btn btn-secondary" download>Testing Suite README</a>
+      </div>
+    </div>
+
+    <div class="test-section">
+      <h2>🤖 Automated Testing</h2>
+      <div class="test-card">
+        <h3>Run Playwright Tests</h3>
+        <p>Execute automated security tests with full evidence collection:</p>
+        <pre style="background: #2d3748; color: #fff; padding: 15px; border-radius: 6px; overflow-x: auto; margin-top: 10px;">
+# Navigate to testing directory
+cd ../security-testing
+
+# Run all tests
+npm test
+
+# Run specific tests
+npm run poc:prototype
+npm run poc:xss
+
+# View HTML report
+npm run test:report</pre>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p><strong>Web3Auth Security Testing Suite</strong></p>
+      <p>Built with Playwright • Ready for Manual & Automated Testing</p>
+      <p>
+        <a href="https://github.com/EmilyKinkead48/web3auth-web" target="_blank">View on GitHub</a> •
+        <a href="https://playwright.dev/" target="_blank">Playwright Docs</a> •
+        <a href="https://hackerone.com/" target="_blank">HackerOne</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    // Check server health
+    fetch('/health')
+      .then(r => r.json())
+      .then(data => {
+        console.log('✅ Test server is healthy:', data);
+      })
+      .catch(err => {
+        console.warn('⚠️  Could not reach test server. Make sure to run: node test-server.js');
+      });
+
+    // Log environment info
+    console.log('%c🔒 Web3Auth Security Testing Suite', 'font-size: 20px; font-weight: bold; color: #667eea;');
+    console.log('Environment:', {
+      userAgent: navigator.userAgent,
+      url: window.location.href,
+      timestamp: new Date().toISOString()
+    });
+  </script>
+</body>
+</html>

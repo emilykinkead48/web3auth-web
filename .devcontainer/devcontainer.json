@@ -1,0 +1,47 @@
+{
+  "name": "Web3Auth Security Testing Environment",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-playwright.playwright",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      }
+    }
+  },
+
+  "forwardPorts": [3000, 8080],
+  "portsAttributes": {
+    "3000": {
+      "label": "Security Test Server",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Burp Suite Proxy",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "postCreateCommand": "npm install && cd security-testing && npm install && npx playwright install chromium",
+
+  "postStartCommand": "echo '🔒 Web3Auth Security Testing Environment Ready!' && echo 'ℹ️  To run security tests: cd security-testing && npm test'",
+
+  "remoteUser": "node",
+
+  "mounts": [
+    "source=${localWorkspaceFolder}/security-testing/test-results,target=/workspace/security-testing/test-results,type=bind,consistency=cached"
+  ]
+}

@@ -1,0 +1,19 @@
+# Test Results
+test-results/
+playwright-report/
+test-results.json
+
+# Screenshots and Videos
+screenshots/
+videos/
+traces/
+
+# Node modules
+node_modules/
+
+# Evidence files
+captured-oauth-tokens.json
+exfiltrated-data.json
+
+# Playwright
+.auth/
