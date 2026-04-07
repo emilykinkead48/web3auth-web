@@ -1,0 +1,25 @@
+{
+  "name": "web3auth-security-testing",
+  "version": "1.0.0",
+  "description": "Security testing suite for Web3Auth using Playwright",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "poc:all": "playwright test --project=chromium",
+    "poc:xss": "playwright test tests/xss-vulnerability.spec.ts",
+    "poc:prototype": "playwright test tests/prototype-pollution.spec.ts",
+    "poc:redirect": "playwright test tests/open-redirect.spec.ts",
+    "poc:session": "playwright test tests/session-storage.spec.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "playwright": "^1.57.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}

